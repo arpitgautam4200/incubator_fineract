@@ -247,6 +247,11 @@ task dist(type:Zip){
         include '**/*'
         into('database/migrations')
     }
+    from('src/test/java'){
+        fileMode = 0755
+        include '**/*'
+        into('java')
+    }
     
     from war.outputs.files
     into(baseName + '-' + version)
@@ -362,16 +367,17 @@ configurations {
 
 task integrationTest(type:Test){
     description = "Run integration tests (located in src/integrationTest/java). Starts tomcat in daemon mode before executing the tests."
-   it.dependsOn war
+    it.dependsOn war
     doFirst {
-       tomcatRunWar.daemon = true
-       tomcatRunWar.execute()
+        tomcatRunWar.daemon = true
+        tomcatRunWar.execute()
     }
 
 
     testClassesDir = project.sourceSets.integrationTest.output.classesDir
     classpath = project.sourceSets.integrationTest.runtimeClasspath
 }
+
 
 
 import groovy.sql.Sql
@@ -387,10 +393,15 @@ dependencies {
 }
 
 test {
-	filter {
-        //includeTestsMatching "org.apache.fineract.infrastructure.configuration.spring.SpringConfigurationTest.*"
-        includeTestsMatching "org.apache.fineract.template.TemplateMergeServiceTest.*"
+	it.dependsOn war
+    doFirst {
+        tomcatRunWar.daemon = true
+        tomcatRunWar.execute()
     }
+	//filter {
+        //includeTestsMatching "org.apache.fineract.infrastructure.configuration.spring.SpringConfigurationTest.*"
+    //    includeTestsMatching "org.apache.fineract.template.TemplateMergeServiceTest.*"
+    //}
 }
 
 URLClassLoader loader = GroovyObject.class.classLoader
@@ -400,19 +411,19 @@ configurations.driver.each {File file ->
 
 task createDB<<{
     description= "Creates the Database. Needs database name to be passed (like: -PdbName=someDBname)"
-    sql = Sql.newInstance( 'jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
+    sql = Sql.newInstance( 'jdbc:mysql://localhost:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
     sql.execute( 'create database '+"`$dbName`" )
 }
 
 task dropDB<<{
     description= "Drops the specified database. The database name has to be passed (like: -PdbName=someDBname)"
-    sql = Sql.newInstance( 'jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
+    sql = Sql.newInstance( 'jdbc:mysql://localhost:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
     sql.execute( 'DROP DATABASE '+"`$dbName`")
 }
 task setBlankPassword<<{
-    sql = Sql.newInstance( 'jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
+    sql = Sql.newInstance( 'jdbc:mysql://localhost:3306/', mysqlUser, mysqlPassword, 'com.mysql.jdbc.Driver' )
     sql.execute('USE `mifosplatform-tenants`')
-    sql.execute('UPDATE mifosplatform-tenants.tenants SET schema_server = \'mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com\', schema_server_port = \'3306\', schema_username = \'mifos\', schema_password = \'mysql\' WHERE id=1;')
+    sql.execute('UPDATE mifosplatform-tenants.tenants SET schema_server = \'localhost\', schema_server_port = \'3306\', schema_username = \'mifos\', schema_password = \'mysql\' WHERE id=1;')
 }
 
 
@@ -430,7 +441,7 @@ buildscript {
 
 
 flyway {
-    url = "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/mifostenant-default"
+    url = "jdbc:mysql://localhost:3306/mifostenant-default"
 	driver = "com.mysql.jdbc.Driver"
     user = mysqlUser
     password = mysqlPassword
@@ -445,7 +456,7 @@ task migrateTenantDB<<{
 		tenantDbName = rootProject.getProperty("dbName")
 	}
 	
-    flyway.url= "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/$tenantDbName"
+    flyway.url= "jdbc:mysql://localhost:3306/$tenantDbName"
 	flyway.driver = "com.mysql.jdbc.Driver"
     flyway.locations= [filePath]
     /**We use ${ as the prefix for strecthy reporting, do not want them to be interpreted by Flyway**/
@@ -462,7 +473,7 @@ task showTenantDBInfo<<{
 		tenantDbName = rootProject.getProperty("dbName")
 	}
 	
-    flyway.url= "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/$tenantDbName"
+    flyway.url= "jdbc:mysql://localhost:3306/$tenantDbName"
 	flyway.driver = "com.mysql.jdbc.Driver"
     flyway.locations= [filePath]
     flywayInfo.execute()
@@ -478,7 +489,7 @@ task migrateTenantListDB<<{
 		tenantsDbName = rootProject.getProperty("dbName")
 	}
 	
-    flyway.url= "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/$tenantsDbName"
+    flyway.url= "jdbc:mysql://localhost:3306/$tenantsDbName"
 	flyway.driver = "com.mysql.jdbc.Driver"
     flyway.locations= [filePath]
 
@@ -494,7 +505,7 @@ task showTenantListDBInfo<<{
 		tenantsDbName = rootProject.getProperty("dbName")
 	}
     
-    flyway.url= "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/$tenantsDbName"
+    flyway.url= "jdbc:mysql://localhost:3306/$tenantsDbName"
 	flyway.driver = "com.mysql.jdbc.Driver"
     flyway.locations= [filePath]
     flywayInfo.execute()
@@ -509,7 +520,7 @@ task repairTenantDB<<{
         tenantsDbName = rootProject.getProperty("dbName")
     }
     
-    flyway.url= "jdbc:mysql://mifoslms-mysql.ciflb6pkogmo.ap-south-1.rds.amazonaws.com:3306/$tenantsDbName"
+    flyway.url= "jdbc:mysql://localhost:3306/$tenantsDbName"
 	flyway.driver = "com.mysql.jdbc.Driver"
     flyway.locations= [filePath]
     flywayRepair.execute()
